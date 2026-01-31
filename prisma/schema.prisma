@@ -1,0 +1,71 @@
+// Smart Complaint Management System - Prisma Schema
+// SQLite for local MVP (no native enums; use String)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String   // bcrypt hash
+  role      String   @default("STUDENT") // STUDENT | ADMIN | SUPER_ADMIN
+  createdAt DateTime @default(now())
+
+  complaintsRaised   Complaint[] @relation("RaisedBy")
+  complaintsClaimed  Complaint[] @relation("ClaimedBy")
+  complaintHistory   ComplaintHistory[]
+  notifications      Notification[]
+}
+
+model Complaint {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  category    String   // Hostel | Mess | Academic | Internet_Network | Infrastructure | Others
+  status      String   @default("SUBMITTED") // SUBMITTED → CLAIMED → IN_PROGRESS → RESOLVED → CLOSED
+  priority    String   @default("NORMAL")    // NORMAL | HIGH (set when not claimed in 30 min)
+  escalated   Boolean  @default(false)        // true when unresolved after 24h
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  claimedAt   DateTime?
+  resolvedAt  DateTime?
+
+  raisedById  String
+  raisedBy    User   @relation("RaisedBy", fields: [raisedById], references: [id], onDelete: Cascade)
+  claimedById String?
+  claimedBy   User?  @relation("ClaimedBy", fields: [claimedById], references: [id])
+
+  history       ComplaintHistory[]
+  notifications Notification[]
+}
+
+// Audit trail: every status change is recorded
+model ComplaintHistory {
+  id          String   @id @default(cuid())
+  complaintId String
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  fromStatus  String?
+  toStatus    String
+  remarks     String?
+  createdAt   DateTime @default(now())
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  complaintId String?
+  complaint   Complaint? @relation(fields: [complaintId], references: [id], onDelete: SetNull)
+  message     String
+  read        Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+}
