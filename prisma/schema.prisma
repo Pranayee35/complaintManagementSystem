@@ -46,7 +46,7 @@ model Complaint {
   notifications Notification[]
 }
 
-// Audit trail: every status change is recorded
+
 model ComplaintHistory {
   id          String   @id @default(cuid())
   complaintId String
